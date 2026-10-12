@@ -2,7 +2,7 @@ from shared.herramientas import (
     imprimir_titulo, imprimir_exito, imprimir_error, imprimir_info, confirmar
 )
 from models import Materia
-import views
+from views import estudiantes, materias, matriculas
 
 
 # =====================================================================
@@ -58,20 +58,20 @@ def crear_estudiante():
         "carnet": input("Carnet: "),
         "carrera": input("Carrera: "),
     }
-    mostrar_resultado(*views.crear_estudiante(datos))
+    mostrar_resultado(*estudiantes.crear(datos))
     pausa()
 
 
 def listar_estudiantes():
     imprimir_titulo("ESTUDIANTES")
-    mostrar_lista(views.obtener_estudiantes(), "Todavía no hay estudiantes.")
+    mostrar_lista(estudiantes.leer(), "Todavía no hay estudiantes.")
     pausa()
 
 
 def buscar_estudiante():
     imprimir_titulo("BUSCAR ESTUDIANTE")
     termino = input("Nombre, email, carnet o carrera: ")
-    encontrados = views.buscar_estudiantes(termino)
+    encontrados = estudiantes.buscar(termino)
     mostrar_lista(encontrados, f"Ningún estudiante coincide con '{termino}'.")
     pausa()
 
@@ -79,19 +79,19 @@ def buscar_estudiante():
 def ver_estudiante():
     imprimir_titulo("VER ESTUDIANTE POR ID")
     id_estudiante = pedir_entero("Id: ")
-    estudiante = views.obtener_estudiante(id_estudiante)
+    estudiante = estudiantes.obtener(id_estudiante)
     if estudiante is None:
         imprimir_error("No encontrado")
     else:
         mostrar_detalle(estudiante)
-        imprimir_info(f"Promedio: {views.promedio_de_estudiante(id_estudiante):.2f}/20")
+        imprimir_info(f"Promedio: {matriculas.promedio_de_estudiante(id_estudiante):.2f}/20")
     pausa()
 
 
 def actualizar_estudiante():
     imprimir_titulo("ACTUALIZAR ESTUDIANTE")
     id_estudiante = pedir_entero("Id: ")
-    estudiante = views.obtener_estudiante(id_estudiante)
+    estudiante = estudiantes.obtener(id_estudiante)
     if estudiante is None:
         imprimir_error("No encontrado")
         return pausa()
@@ -106,21 +106,21 @@ def actualizar_estudiante():
         if nuevo:
             cambios[campo] = nuevo
 
-    mostrar_resultado(*views.actualizar_estudiante(id_estudiante, cambios))
+    mostrar_resultado(*estudiantes.actualizar(id_estudiante, cambios))
     pausa()
 
 
 def eliminar_estudiante():
     imprimir_titulo("ELIMINAR ESTUDIANTE")
     id_estudiante = pedir_entero("Id: ")
-    estudiante = views.obtener_estudiante(id_estudiante)
+    estudiante = estudiantes.obtener(id_estudiante)
     if estudiante is None:
         imprimir_error("No encontrado")
         return pausa()
 
     imprimir_info(f"Se eliminará: {estudiante.etiqueta()}")
     if confirmar("¿Confirma?"):
-        mostrar_resultado(*views.eliminar_estudiante(id_estudiante))
+        mostrar_resultado(*estudiantes.eliminar(id_estudiante))
     else:
         imprimir_info("Operación cancelada")
     pausa()
@@ -138,26 +138,26 @@ def crear_materia():
         "creditos": input("Créditos (1 a 10): "),
         "cupos": input("Cupos disponibles (Enter = 30): ").strip() or str(Materia.CUPOS_MAXIMOS),
     }
-    mostrar_resultado(*views.crear_materia(datos))
+    mostrar_resultado(*materias.crear(datos))
     pausa()
 
 
 def listar_materias():
     imprimir_titulo("MATERIAS")
-    mostrar_lista(views.obtener_materias(), "Todavía no hay materias.")
+    mostrar_lista(materias.leer(), "Todavía no hay materias.")
     pausa()
 
 
 def buscar_materia():
     imprimir_titulo("BUSCAR MATERIA")
     termino = input("Nombre o código: ")
-    mostrar_lista(views.buscar_materias(termino), "Sin coincidencias.")
+    mostrar_lista(materias.buscar(termino), "Sin coincidencias.")
     pausa()
 
 
 def ver_materia():
     imprimir_titulo("VER MATERIA POR ID")
-    materia = views.obtener_materia(pedir_entero("Id: "))
+    materia = materias.obtener(pedir_entero("Id: "))
     if materia is None:
         imprimir_error("No encontrada")
     else:
@@ -168,7 +168,7 @@ def ver_materia():
 def actualizar_materia():
     imprimir_titulo("ACTUALIZAR MATERIA")
     id_materia = pedir_entero("Id: ")
-    materia = views.obtener_materia(id_materia)
+    materia = materias.obtener(id_materia)
     if materia is None:
         imprimir_error("No encontrada")
         return pausa()
@@ -182,21 +182,21 @@ def actualizar_materia():
         if nuevo:
             cambios[campo] = nuevo
 
-    mostrar_resultado(*views.actualizar_materia(id_materia, cambios))
+    mostrar_resultado(*materias.actualizar(id_materia, cambios))
     pausa()
 
 
 def eliminar_materia():
     imprimir_titulo("ELIMINAR MATERIA")
     id_materia = pedir_entero("Id: ")
-    materia = views.obtener_materia(id_materia)
+    materia = materias.obtener(id_materia)
     if materia is None:
         imprimir_error("No encontrada")
         return pausa()
 
     imprimir_info(f"Se eliminará: {materia.etiqueta()}")
     if confirmar("¿Confirma?"):
-        mostrar_resultado(*views.eliminar_materia(id_materia))
+        mostrar_resultado(*materias.eliminar(id_materia))
     else:
         imprimir_info("Operación cancelada")
     pausa()
@@ -209,9 +209,9 @@ def eliminar_materia():
 def matricular():
     imprimir_titulo("MATRICULAR ESTUDIANTE")
     imprimir_info("Estudiantes:")
-    mostrar_lista(views.obtener_estudiantes())
+    mostrar_lista(estudiantes.leer())
     imprimir_info("Materias:")
-    mostrar_lista(views.obtener_materias())
+    mostrar_lista(materias.leer())
 
     datos = {
         "estudiante_id": pedir_entero("\nId del estudiante: "),
@@ -222,32 +222,32 @@ def matricular():
         imprimir_error("Los identificadores deben ser números enteros")
         return pausa()
 
-    mostrar_resultado(*views.crear_matricula(datos))
+    mostrar_resultado(*matriculas.crear(datos))
     pausa()
 
 
 def listar_matriculas():
     imprimir_titulo("MATRÍCULAS")
-    mostrar_lista(views.obtener_matriculas(), "Todavía no hay matrículas.")
+    mostrar_lista(matriculas.leer(), "Todavía no hay matrículas.")
     pausa()
 
 
 def registrar_nota():
     imprimir_titulo("REGISTRAR NOTA")
     id_matricula = pedir_entero("Id de la matrícula: ")
-    matricula = views.obtener_matricula(id_matricula)
+    matricula = matriculas.obtener(id_matricula)
     if matricula is None:
         imprimir_error("No encontrada")
         return pausa()
     imprimir_info(f"Matrícula: {matricula.etiqueta()}")
     nota = input("Nota (0 a 20, use punto para decimales): ").strip()
-    mostrar_resultado(*views.registrar_nota(id_matricula, nota))
+    mostrar_resultado(*matriculas.actualizar(id_matricula, {"nota": nota}))
     pausa()
 
 
 def ver_certificado():
     imprimir_titulo("CERTIFICADO")
-    texto = views.certificado(pedir_entero("Id de la matrícula: "))
+    texto = matriculas.certificado(pedir_entero("Id de la matrícula: "))
     if texto is None:
         imprimir_error("No existe esa matrícula")
     else:
@@ -258,14 +258,14 @@ def ver_certificado():
 def retirar_matricula():
     imprimir_titulo("RETIRAR MATRÍCULA")
     id_matricula = pedir_entero("Id de la matrícula: ")
-    matricula = views.obtener_matricula(id_matricula)
+    matricula = matriculas.obtener(id_matricula)
     if matricula is None:
         imprimir_error("No encontrada")
         return pausa()
 
     imprimir_info(f"Se retirará: {matricula.etiqueta()}")
     if confirmar("Se devolverá un cupo. ¿Confirma?"):
-        mostrar_resultado(*views.retirar_matricula(id_matricula))
+        mostrar_resultado(*matriculas.eliminar(id_matricula))
     else:
         imprimir_info("Operación cancelada")
     pausa()
@@ -273,20 +273,20 @@ def retirar_matricula():
 
 def resumen():
     imprimir_titulo("RESUMEN")
-    estudiantes = views.obtener_estudiantes()
-    matriculas = views.obtener_matriculas()
+    lista_estudiantes = estudiantes.leer()
+    lista_matriculas = matriculas.leer()
     # SET: quita carreras repetidas; sorted las muestra en orden.
-    carreras = sorted({e.carrera for e in estudiantes if e.carrera != ""})
-    sin_cupo = views.materias_sin_cupo()
+    carreras = sorted({e.carrera for e in lista_estudiantes if e.carrera != ""})
+    sin_cupo = materias.materias_sin_cupo()
     aprobadas = 0
-    for matricula in matriculas:
+    for matricula in lista_matriculas:
         if matricula.esta_aprobada():
             aprobadas += 1
 
-    print(f"  Estudiantes          : {len(estudiantes)}")
+    print(f"  Estudiantes          : {len(lista_estudiantes)}")
     print(f"  Carreras             : {', '.join(carreras) or '-'}")
     print(f"  Materias sin cupo    : {', '.join(m.nombre for m in sin_cupo) or 'ninguna'}")
-    print(f"  Matrículas           : {len(matriculas)}")
+    print(f"  Matrículas           : {len(lista_matriculas)}")
     print(f"  Matrículas aprobadas : {aprobadas}")
     pausa()
 
