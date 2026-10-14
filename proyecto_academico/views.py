@@ -9,77 +9,6 @@ from shared.herramientas import es_email_valido
 CARPETA_DATOS = os.path.join(os.path.dirname(__file__), "data")
 
 
-# Funciones genéricas: los tres controladores pueden reutilizarlas.
-def leer_objetos(gestor, clase):
-    objetos = []
-    for datos in gestor.leer():
-        objetos.append(clase.desde_diccionario(datos))
-    return objetos
-
-
-def obtener_por_id(gestor, clase, id_registro):
-    for objeto in leer_objetos(gestor, clase):
-        if objeto.id == id_registro:
-            return objeto
-    return None
-
-
-def buscar(gestor, clase, termino, campos):
-    termino = termino.strip().lower()
-    encontrados = []
-    if termino == "":
-        return encontrados
-
-    for objeto in leer_objetos(gestor, clase):
-        for campo in campos:
-            if termino in str(getattr(objeto, campo)).lower():
-                encontrados.append(objeto)
-                break
-    return encontrados
-
-
-def siguiente_id(gestor):
-    mayor = 0
-    for datos in gestor.leer():
-        if datos["id"] > mayor:
-            mayor = datos["id"]
-    return mayor + 1
-
-
-def guardar_nuevo(gestor, objeto):
-    datos = gestor.leer()
-    datos.append(objeto.a_diccionario())
-    return gestor.guardar(datos)
-
-
-def reemplazar(gestor, objeto):
-    datos = gestor.leer()
-    for posicion, registro in enumerate(datos):
-        if registro["id"] == objeto.id:
-            datos[posicion] = objeto.a_diccionario()
-            return gestor.guardar(datos)
-    return False
-
-
-def eliminar(gestor, id_registro):
-    datos = gestor.leer()
-    for registro in datos:
-        if registro["id"] == id_registro:
-            datos.remove(registro)
-            return gestor.guardar(datos)
-    return False
-
-
-def ids_registrados(gestor):
-    # SET: permite comprobar si un identificador existe, sin repetir ids.
-    return {datos["id"] for datos in gestor.leer()}
-
-
-def indice_por_id(objetos):
-    # DICT: relaciona cada id con su objeto para consultarlo directamente.
-    return {objeto.id: objeto for objeto in objetos}
-
-
 # La clase abstracta define qué operaciones debe tener cada controlador.
 class CrudBase(ABC):
 
@@ -121,18 +50,37 @@ class EstudianteController(CrudBase):
         self.gestor_matriculas = GestorJSON(ruta_matriculas)
 
     def siguiente(self):
-        return siguiente_id(self.gestor)
+        mayor = 0
+        for datos in self.gestor.leer():
+            if datos["id"] > mayor:
+                mayor = datos["id"]
+        return mayor + 1
 
     def leer(self):
-        return leer_objetos(self.gestor, Estudiante)
+        estudiantes = []
+        for datos in self.gestor.leer():
+            estudiantes.append(Estudiante.desde_diccionario(datos))
+        return estudiantes
 
     def obtener(self, id_estudiante):
-        return obtener_por_id(self.gestor, Estudiante, id_estudiante)
+        for estudiante in self.leer():
+            if estudiante.id == id_estudiante:
+                return estudiante
+        return None
 
     def buscar(self, termino):
         # TUPLA: los campos de búsqueda son fijos y no necesitamos modificarlos.
         campos = ("nombre", "apellido", "email", "carnet", "carrera")
-        return buscar(self.gestor, Estudiante, termino, campos)
+        termino = termino.strip().lower()
+        encontrados = []
+        if termino == "":
+            return encontrados
+        for estudiante in self.leer():
+            for campo in campos:
+                if termino in str(getattr(estudiante, campo)).lower():
+                    encontrados.append(estudiante)
+                    break
+        return encontrados
 
     def crear(self, datos):
         error = self.validar(datos)
@@ -148,7 +96,9 @@ class EstudianteController(CrudBase):
             str(datos["carnet"]).strip().upper(),
             str(datos.get("carrera", "")).strip().title()
         )
-        if not guardar_nuevo(self.gestor, estudiante):
+        registros = self.gestor.leer()
+        registros.append(estudiante.a_diccionario())
+        if not self.gestor.guardar(registros):
             return False, "No se pudo guardar el estudiante"
         return True, f"Estudiante creado: {estudiante.etiqueta()}"
 
@@ -177,17 +127,24 @@ class EstudianteController(CrudBase):
                 valor = valor.upper()
             setattr(estudiante, campo, valor)
 
-        if not reemplazar(self.gestor, estudiante):
+        registros = self.gestor.leer()
+        for posicion, registro in enumerate(registros):
+            if registro["id"] == id_estudiante:
+                registros[posicion] = estudiante.a_diccionario()
+                break
+        if not self.gestor.guardar(registros):
             return False, "No se pudo actualizar el estudiante"
         return True, f"Estudiante {id_estudiante} actualizado"
 
     def eliminar(self, id_estudiante):
         if self.obtener(id_estudiante) is None:
             return False, "No existe ese estudiante"
-        for matricula in leer_objetos(self.gestor_matriculas, Matricula):
-            if matricula.estudiante_id == id_estudiante:
+        for matricula in self.gestor_matriculas.leer():
+            if matricula["estudiante_id"] == id_estudiante:
                 return False, "Primero debe retirar las matrículas de este estudiante"
-        if not eliminar(self.gestor, id_estudiante):
+        registros = self.gestor.leer()
+        registros = [r for r in registros if r["id"] != id_estudiante]
+        if not self.gestor.guardar(registros):
             return False, "No se pudo eliminar el estudiante"
         return True, f"Estudiante {id_estudiante} eliminado"
 
@@ -227,18 +184,37 @@ class MateriaController(CrudBase):
         self.gestor_matriculas = GestorJSON(ruta_matriculas)
 
     def siguiente(self):
-        return siguiente_id(self.gestor)
+        mayor = 0
+        for datos in self.gestor.leer():
+            if datos["id"] > mayor:
+                mayor = datos["id"]
+        return mayor + 1
 
     def leer(self):
-        return leer_objetos(self.gestor, Materia)
+        materias = []
+        for datos in self.gestor.leer():
+            materias.append(Materia.desde_diccionario(datos))
+        return materias
 
     def obtener(self, id_materia):
-        return obtener_por_id(self.gestor, Materia, id_materia)
+        for materia in self.leer():
+            if materia.id == id_materia:
+                return materia
+        return None
 
     def buscar(self, termino):
         # TUPLA: se busca siempre en estos dos campos.
         campos = ("nombre", "codigo")
-        return buscar(self.gestor, Materia, termino, campos)
+        termino = termino.strip().lower()
+        encontrados = []
+        if termino == "":
+            return encontrados
+        for materia in self.leer():
+            for campo in campos:
+                if termino in str(getattr(materia, campo)).lower():
+                    encontrados.append(materia)
+                    break
+        return encontrados
 
     def crear(self, datos):
         error = self.validar(datos)
@@ -251,7 +227,9 @@ class MateriaController(CrudBase):
             int(datos["creditos"]),
             int(datos.get("cupos", Materia.CUPOS_MAXIMOS))
         )
-        if not guardar_nuevo(self.gestor, materia):
+        registros = self.gestor.leer()
+        registros.append(materia.a_diccionario())
+        if not self.gestor.guardar(registros):
             return False, "No se pudo guardar la materia"
         return True, f"Materia creada: {materia.etiqueta()}"
 
@@ -276,17 +254,24 @@ class MateriaController(CrudBase):
             materia.creditos = int(cambios["creditos"])
         if "cupos" in cambios:
             materia.cupos = int(cambios["cupos"])
-        if not reemplazar(self.gestor, materia):
+        registros = self.gestor.leer()
+        for posicion, registro in enumerate(registros):
+            if registro["id"] == id_materia:
+                registros[posicion] = materia.a_diccionario()
+                break
+        if not self.gestor.guardar(registros):
             return False, "No se pudo actualizar la materia"
         return True, f"Materia {id_materia} actualizada"
 
     def eliminar(self, id_materia):
         if self.obtener(id_materia) is None:
             return False, "No existe esa materia"
-        for matricula in leer_objetos(self.gestor_matriculas, Matricula):
-            if matricula.materia_id == id_materia:
+        for matricula in self.gestor_matriculas.leer():
+            if matricula["materia_id"] == id_materia:
                 return False, "Primero debe retirar las matrículas de esta materia"
-        if not eliminar(self.gestor, id_materia):
+        registros = self.gestor.leer()
+        registros = [r for r in registros if r["id"] != id_materia]
+        if not self.gestor.guardar(registros):
             return False, "No se pudo eliminar la materia"
         return True, f"Materia {id_materia} eliminada"
 
@@ -331,8 +316,8 @@ class MateriaController(CrudBase):
 
             # Los lugares ocupados también cuentan para el máximo de la materia.
             ocupados = 0
-            for matricula in leer_objetos(self.gestor_matriculas, Matricula):
-                if matricula.materia_id == id_actual:
+            for matricula in self.gestor_matriculas.leer():
+                if matricula["materia_id"] == id_actual:
                     ocupados += 1
             if cupos + ocupados > Materia.CUPOS_MAXIMOS:
                 return f"Con {ocupados} matrículas, puede dejar como máximo {Materia.CUPOS_MAXIMOS - ocupados} cupos"
@@ -351,12 +336,25 @@ class MatriculaController(CrudBase):
         self.materias.gestor_matriculas = self.gestor
 
     def siguiente(self):
-        return siguiente_id(self.gestor)
+        mayor = 0
+        for datos in self.gestor.leer():
+            if datos["id"] > mayor:
+                mayor = datos["id"]
+        return mayor + 1
 
     def buscar(self, texto):
         # TUPLA: el período y la fecha son los campos fijos de búsqueda.
         campos = ("periodo", "fecha")
-        return buscar(self.gestor, Matricula, texto, campos)
+        texto = texto.strip().lower()
+        encontradas = []
+        if texto == "":
+            return encontradas
+        for matricula in self.leer():
+            for campo in campos:
+                if texto in str(getattr(matricula, campo)).lower():
+                    encontradas.append(matricula)
+                    break
+        return encontradas
 
     def actualizar(self, id_matricula, datos):
         if not datos:
@@ -367,10 +365,16 @@ class MatriculaController(CrudBase):
         return self.registrar_nota(id_matricula, datos["nota"])
 
     def leer(self):
-        return leer_objetos(self.gestor, Matricula)
+        matriculas = []
+        for datos in self.gestor.leer():
+            matriculas.append(Matricula.desde_diccionario(datos))
+        return matriculas
 
     def obtener(self, id_matricula):
-        return obtener_por_id(self.gestor, Matricula, id_matricula)
+        for matricula in self.leer():
+            if matricula.id == id_matricula:
+                return matricula
+        return None
 
     def crear(self, datos):
         error = self.validar(datos)
@@ -387,12 +391,24 @@ class MatriculaController(CrudBase):
         )
 
         materia.ocupar_cupo()
-        if not reemplazar(self.materias.gestor, materia):
+        registros_materias = self.materias.gestor.leer()
+        for posicion, registro in enumerate(registros_materias):
+            if registro["id"] == materia.id:
+                registros_materias[posicion] = materia.a_diccionario()
+                break
+        if not self.materias.gestor.guardar(registros_materias):
             return False, "No se pudo guardar el cambio de cupos"
-        if not guardar_nuevo(self.gestor, matricula):
+        registros = self.gestor.leer()
+        registros.append(matricula.a_diccionario())
+        if not self.gestor.guardar(registros):
             # Si no se guarda la matrícula, devolvemos el cupo descontado.
             materia.liberar_cupo()
-            if not reemplazar(self.materias.gestor, materia):
+            registros_materias = self.materias.gestor.leer()
+            for posicion, registro in enumerate(registros_materias):
+                if registro["id"] == materia.id:
+                    registros_materias[posicion] = materia.a_diccionario()
+                    break
+            if not self.materias.gestor.guardar(registros_materias):
                 return False, "No se guardó la matrícula y no se pudo restaurar el cupo"
             return False, "No se pudo guardar la matrícula"
         return True, f"Matrícula {matricula.id} registrada"
@@ -408,12 +424,24 @@ class MatriculaController(CrudBase):
             return False, "Revise los cupos de la materia: ya tiene el máximo disponible"
 
         materia.liberar_cupo()
-        if not reemplazar(self.materias.gestor, materia):
+        registros_materias = self.materias.gestor.leer()
+        for posicion, registro in enumerate(registros_materias):
+            if registro["id"] == materia.id:
+                registros_materias[posicion] = materia.a_diccionario()
+                break
+        if not self.materias.gestor.guardar(registros_materias):
             return False, "No se pudo guardar la devolución del cupo"
-        if not eliminar(self.gestor, id_matricula):
+        registros = self.gestor.leer()
+        registros = [r for r in registros if r["id"] != id_matricula]
+        if not self.gestor.guardar(registros):
             # Si falla el retiro, el estudiante conserva su lugar.
             materia.ocupar_cupo()
-            if not reemplazar(self.materias.gestor, materia):
+            registros_materias = self.materias.gestor.leer()
+            for posicion, registro in enumerate(registros_materias):
+                if registro["id"] == materia.id:
+                    registros_materias[posicion] = materia.a_diccionario()
+                    break
+            if not self.materias.gestor.guardar(registros_materias):
                 return False, "No se retiró la matrícula y no se pudo restaurar el cupo"
             return False, "No se pudo retirar la matrícula"
         return True, f"Matrícula {id_matricula} retirada y cupo devuelto"
@@ -426,7 +454,12 @@ class MatriculaController(CrudBase):
             return False, "La nota debe ser un número entre 0 y 20"
 
         matricula.nota = float(nota)
-        if not reemplazar(self.gestor, matricula):
+        registros = self.gestor.leer()
+        for posicion, registro in enumerate(registros):
+            if registro["id"] == id_matricula:
+                registros[posicion] = matricula.a_diccionario()
+                break
+        if not self.gestor.guardar(registros):
             return False, "No se pudo guardar la nota"
         return True, f"Nota registrada: {matricula.nota:g} · {matricula.estado()}"
 
@@ -438,9 +471,11 @@ class MatriculaController(CrudBase):
             return "Los identificadores deben ser números enteros"
 
         # SET: comprobamos la existencia de los ids antes de relacionar los datos.
-        if estudiante_id not in ids_registrados(self.estudiantes.gestor):
+        ids_estudiantes = {e.id for e in self.estudiantes.leer()}
+        ids_materias = {m.id for m in self.materias.leer()}
+        if estudiante_id not in ids_estudiantes:
             return "No existe ese estudiante"
-        if materia_id not in ids_registrados(self.materias.gestor):
+        if materia_id not in ids_materias:
             return "No existe esa materia"
 
         periodo = str(datos.get("periodo") or "").strip()
@@ -466,8 +501,8 @@ class MatriculaController(CrudBase):
             return None
 
         # DICT ÍNDICE: accedemos a cada objeto por su id para armar el certificado.
-        estudiantes = indice_por_id(self.estudiantes.leer())
-        materias = indice_por_id(self.materias.leer())
+        estudiantes = {e.id: e for e in self.estudiantes.leer()}
+        materias = {m.id: m for m in self.materias.leer()}
         estudiante = estudiantes.get(matricula.estudiante_id)
         materia = materias.get(matricula.materia_id)
         if estudiante is None or materia is None:
@@ -588,3 +623,4 @@ def matriculas_por_estudiante():
 
 def promedio_de_estudiante(id_estudiante):
     return matriculas.promedio_de_estudiante(id_estudiante)
+
